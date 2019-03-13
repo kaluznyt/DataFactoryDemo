@@ -17,14 +17,13 @@ namespace DataFactoryDemo
         private static string authenticationKey;
         private static string subscriptionId;
         private static string resourceGroup;
-        private static string region;
         private static string dataFactoryName;
         private static string storageAccount;
         private static string storageKey;
 
+        private static string region = "North Europe";
         static string inputBlobPath = "adftutorial/input";
         static string outputBlobPath = "adftutorial/output";
-
         static string storageLinkedServiceName = "AzureStorageLinkedService"; 
         static string blobDatasetName = "BlobDataset";          
         static string pipelineName = "Adfv2QuickStartPipeline";
@@ -37,15 +36,25 @@ namespace DataFactoryDemo
 
             client = InitializeDataFactoryClient();
 
-            //CreateDataFactory();
+            CreateDataFactory();
 
-            //CreateLinkedService();
+            CreateLinkedService();
 
-            //CreateDataSet();
+            CreateDataSet();
 
-            //CreatePipeline();
+            CreatePipeline();
 
             ExtractRunDetails(MonitorPipeline(RunPipeline()));
+
+            DeleteDataFactory();
+        }
+
+        private static void DeleteDataFactory()
+        {
+            Console.WriteLine("Press any key to delete data factory");
+            Console.ReadKey();
+            Console.WriteLine("Deleting the data factory");
+            client.Factories.Delete(resourceGroup, dataFactoryName);
         }
 
         private static void InitializeConfigurationSettings()
