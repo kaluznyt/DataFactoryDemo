@@ -2,14 +2,114 @@
 using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
-using Microsoft.Rest;
-using Microsoft.Azure.Management.ResourceManager;
+using System.Threading.Tasks;
 using Microsoft.Azure.Management.DataFactory;
 using Microsoft.Azure.Management.DataFactory.Models;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
+using Microsoft.Rest;
+using Microsoft.Rest.Serialization;
 
 namespace DataFactoryDemo
 {
+
+    public interface IAzureDataFactoryClient
+    {
+        Task<string> RunPipelineAsync(string pipelineName, PipelineParameters pipelineParameters);
+
+        Task<string> GetPipelineRunStatusAsync(string pipelineRunId);
+    }
+
+    public interface IAzureAuthenticationProvider
+    {
+        Task<string> LoginAsync();
+    }
+
+    public class AzureAuthenticationProvider : IAzureAuthenticationProvider
+    {
+        private readonly string _tenantId;
+        private readonly string _applicationId;
+        private readonly string _authenticationKey;
+
+        private const string AzureLoginUrl = "https://login.windows.net/";
+        private const string AzureManagementUrl = "https://management.azure.com/";
+
+        public AzureAuthenticationProvider(string tenantId, string applicationId, string authenticationKey)
+        {
+            this._tenantId = tenantId;
+            this._applicationId = applicationId;
+            this._authenticationKey = authenticationKey;
+        }
+
+        public async Task<string> LoginAsync()
+        {
+            var context = new AuthenticationContext(AzureLoginUrl + _tenantId);
+            var cc = new ClientCredential(_applicationId, _authenticationKey);
+            return await Task.FromResult((await context.AcquireTokenAsync(AzureManagementUrl, cc)).AccessToken);
+        }
+    }
+
+    public class AzureDataFactoryClient : IAzureDataFactoryClient
+    {
+        private readonly IAzureAuthenticationProvider _azureAuthenticationProvider;
+
+        private readonly string _subscriptionId;
+        private readonly string _resourceGroup;
+        private readonly string _dataFactoryName;
+
+        private DataFactoryManagementClient _dataFactoryClient;
+
+        public AzureDataFactoryClient(IAzureAuthenticationProvider azureAuthenticationProvider, string subscriptionId, string resourceGroup, string dataFactoryName)
+        {
+            _azureAuthenticationProvider = azureAuthenticationProvider;
+            _resourceGroup = resourceGroup;
+            _dataFactoryName = dataFactoryName;
+            _subscriptionId = subscriptionId;
+
+            InitializeClient().Wait(); 
+        }
+
+        private async Task InitializeClient()
+        {
+            var token = await _azureAuthenticationProvider.LoginAsync();
+            var tokenCredentials = new TokenCredentials(token);
+            _dataFactoryClient = new DataFactoryManagementClient(tokenCredentials) { SubscriptionId = _subscriptionId };
+
+            await Task.CompletedTask;
+        }
+
+        public async Task<string> RunPipelineAsync(string pipelineName, PipelineParameters pipelineParameters)
+        {
+            Console.WriteLine("Running async");
+            return await Task.FromResult((await _dataFactoryClient.Pipelines
+                .CreateRunWithHttpMessagesAsync(
+                    _resourceGroup,
+                    _dataFactoryName,
+                    pipelineName,
+                    parameters: pipelineParameters.ToDictionary()))
+                .Body.RunId);
+        }
+
+        public async Task<string> GetPipelineRunStatusAsync(string pipelineRunId)
+        {
+            return (await _dataFactoryClient.PipelineRuns.GetAsync(_resourceGroup, _dataFactoryName, pipelineRunId)).Status;
+        }
+    }
+
+    public class PipelineParameters
+    {
+        public string InputPath { get; set; }
+        public string OutputPath { get; set; }
+
+        public Dictionary<string, object> ToDictionary()
+        {
+            return new Dictionary<string, object>
+            {
+                [nameof(InputPath).ToLower()] = InputPath,
+                [nameof(OutputPath).ToLower()] = OutputPath
+            };
+        }
+    }
+
     class Program
     {
         private static string tenantId;
@@ -24,29 +124,45 @@ namespace DataFactoryDemo
         private static string region = "North Europe";
         static string inputBlobPath = "adftutorial/input";
         static string outputBlobPath = "adftutorial/output";
-        static string storageLinkedServiceName = "AzureStorageLinkedService"; 
-        static string blobDatasetName = "BlobDataset";          
+        static string storageLinkedServiceName = "AzureStorageLinkedService";
+        static string blobDatasetName = "BlobDataset";
         static string pipelineName = "Adfv2QuickStartPipeline";
 
         private static DataFactoryManagementClient client;
 
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             InitializeConfigurationSettings();
 
-            client = InitializeDataFactoryClient();
+            //client = InitializeDataFactoryClient();
 
-            CreateDataFactory();
+            //CreateDataFactory();
 
-            CreateLinkedService();
+            //CreateLinkedService();
 
-            CreateDataSet();
+            //CreateDataSet();
 
-            CreatePipeline();
+            //CreatePipeline();
 
-            ExtractRunDetails(MonitorPipeline(RunPipeline()));
+            //ExtractRunDetails(MonitorPipeline(RunPipelineAsync()));
 
-            DeleteDataFactory();
+            //DeleteDataFactory();
+
+            var azureAuthenticationProvider = new AzureAuthenticationProvider(tenantId, applicationId, authenticationKey);
+
+            var dataFactoryClient = new AzureDataFactoryClient(azureAuthenticationProvider, subscriptionId, resourceGroup, dataFactoryName);
+
+            Task.Factory.StartNew(async () =>
+                await dataFactoryClient.RunPipelineAsync(pipelineName,
+                    new PipelineParameters {InputPath = "abc", OutputPath = "cda"}));
+
+            //Console.WriteLine(pipelineRunId);
+
+            //var pipelineRunStatus = await dataFactoryClient.GetPipelineRunStatusAsync(pipelineRunId);
+
+            Console.WriteLine("abc");
+
+            Console.ReadKey();
         }
 
         private static void DeleteDataFactory()
