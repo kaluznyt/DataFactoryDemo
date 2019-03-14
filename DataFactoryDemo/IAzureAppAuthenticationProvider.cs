@@ -2,7 +2,7 @@
 
 namespace DataFactoryDemo
 {
-    public interface IAzureAuthenticationProvider
+    public interface IAzureAppAuthenticationProvider
     {
         Task<string> LoginAsync();
     }

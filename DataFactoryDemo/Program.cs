@@ -49,13 +49,13 @@ namespace DataFactoryDemo
 
             //DeleteDataFactory();
 
-            var azureAuthenticationProvider = new AzureAuthenticationProvider(tenantId, applicationId, authenticationKey);
+            var azureAuthenticationProvider = new AzureAppAppAuthenticationProvider(tenantId, applicationId, authenticationKey);
 
             var dataFactoryClient = new AzureDataFactoryClient(azureAuthenticationProvider, subscriptionId, resourceGroup, dataFactoryName);
 
-            Task.Factory.StartNew(async () =>
-                await dataFactoryClient.RunPipelineAsync(pipelineName,
-                    new PipelineParameters {InputPath = "abc", OutputPath = "cda"}));
+            Task.Factory.StartNew(
+                () => dataFactoryClient.RunPipelineAsync(pipelineName, 
+                new PipelineParameters { InputPath = "abc", OutputPath = "cda" }));
 
             //Console.WriteLine(pipelineRunId);
 
