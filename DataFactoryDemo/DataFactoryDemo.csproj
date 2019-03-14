@@ -74,6 +74,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AzureAuthenticationProvider.cs" />
+    <Compile Include="AzureDataFactoryClient.cs" />
+    <Compile Include="IAzureAuthenticationProvider.cs" />
+    <Compile Include="IAzureDataFactoryClient.cs" />
+    <Compile Include="PipelineParameters.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
